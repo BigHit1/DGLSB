@@ -59,6 +59,13 @@ class Diffusion(object):
         )
 
         start_epoch, step = 0, 0
+        if self.args.resume_training:
+            states = torch.load(os.path.join(self.args.log_path, "ckpt_D.pth"))
+            D.load_state_dict(states[0])
+            states[1]["param_groups"][0]["eps"] = self.config.optim.eps
+            optimizerD.load_state_dict(states[1])
+            start_epoch = states[2]
+            step = states[3]
 
         for epoch in range(start_epoch, self.config.training.n_epochs_d):
             for i, (x, y) in enumerate(train_loader):
@@ -84,11 +91,25 @@ class Diffusion(object):
                     break
                 if not step % 100:
                     logging.info(f"step: {step}, loss: {loss_d}")
+                    if not step % self.config.training.snapshot_freq_d:
+                        states = [
+                            D.state_dict(),
+                            optimizerD.state_dict(),
+                            epoch,
+                            step,
+                        ]
+                        torch.save(states, os.path.join(self.args.log_path, f"ckpt_D_{step}.pth"))
+
             if step >= self.config.training.n_iters_d:
                 break
 
-        state = {'D': D.state_dict()}
-        torch.save(state, os.path.join(self.args.log_path, f"ckpt_DRE_{self.args.sigma_sq}_{self.args.tau}.pth"))
+        states = [
+            D.state_dict(),
+            optimizerD.state_dict(),
+            self.config.training.n_epochs_d,
+            step,
+        ]
+        torch.save(states, os.path.join(self.args.log_path, "ckpt_D_done.pth"))
 
     def train_s(self):
         dataset, test_dataset = get_dataset(self.args, self.config)
@@ -113,7 +134,7 @@ class Diffusion(object):
 
         start_epoch, step = 0, 0
         if self.args.resume_training:
-            states = torch.load(os.path.join(self.args.log_path, "ckpt.pth"))
+            states = torch.load(os.path.join(self.args.log_path, "ckpt_S.pth"))
             S.load_state_dict(states[0])
 
             states[1]["param_groups"][0]["eps"] = self.config.optim.eps
@@ -170,11 +191,10 @@ class Diffusion(object):
 
                     torch.save(
                         states,
-                        os.path.join(self.args.log_path, "ckpt_{}.pth".format(step)),
+                        os.path.join(self.args.log_path, "ckpt_S_{}.pth".format(step)),
                     )
-                    torch.save(states, os.path.join(self.args.log_path, "ckpt.pth"))
 
-                data_start = time.time()
+
 
     def calculate_image_mean(self):
         dataset, test_dataset = get_dataset(self.args, self.config)

@@ -5,6 +5,7 @@ import torchvision.transforms as transforms
 import torchvision.transforms.functional as F
 from torchvision.datasets import CIFAR10
 from datasets.celeba import CelebA
+from datasets.celebaHQ512 import CelebaHQ512
 from torch.utils.data import Subset
 import numpy as np
 
@@ -29,7 +30,7 @@ def get_dataset(args, config):
     tran_transform = transforms.Compose([
         transforms.Resize(config.data.image_size),
         transforms.RandomHorizontalFlip(p=0.5),
-        transforms.ToTensor(),])
+        transforms.ToTensor(), ])
     test_transform = transforms.Compose([transforms.Resize(config.data.image_size), transforms.ToTensor()])
 
     if config.data.dataset == "CIFAR10":
@@ -80,10 +81,17 @@ def get_dataset(args, config):
             download=True,
         )
 
+    # 在此处添加新的数据集配置
+    elif config.data.dataset == 'celebaHQ512':
+        dataset = CelebaHQ512()
+        test_dataset = None
+
+
     else:
         dataset, test_dataset = None, None
 
     return dataset, test_dataset
+
 
 def data_transform(config, X, **kwargs):
     if config.data.rescaled:
